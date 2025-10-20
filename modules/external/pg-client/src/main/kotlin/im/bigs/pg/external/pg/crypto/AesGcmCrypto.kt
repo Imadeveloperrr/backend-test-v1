@@ -96,4 +96,11 @@ object AesGcmCrypto {
         val digest = MessageDigest.getInstance("SHA-256")
         return digest.digest(apiKey.toByteArray(Charsets.UTF_8))
     }
+
+    /**
+     *   1. IV는 절대 재사용 금지: 매번 SecureRandom()으로 생성
+     *   2. API-KEY는 안전하게 보관: 환경변수나 설정 파일에 저장
+     *   3. Tag 검증 실패는 무조건 거부: 데이터가 변조된 것
+     *   4. 예외 처리 필수: decrypt() 시 여러 예외 발생 가능
+     */
 }

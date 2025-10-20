@@ -9,4 +9,10 @@ import java.time.LocalDateTime
  */
 interface FeePolicyOutPort {
     fun findEffectivePolicy(partnerId: Long, at: LocalDateTime = LocalDateTime.now()): FeePolicy?
+
+    fun findLatestByPartnerIdAndEffectiveFrom(
+        partnerId: Long,
+        effectiveFrom: LocalDateTime
+    ): FeePolicy?
+
 }
