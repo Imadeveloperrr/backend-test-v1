@@ -16,4 +16,8 @@ spring:
       write-dates-as-timestamps: false
 server:
   port: 8080
+testpay:
+  # 환경변수로 외부화 (기본값은 테스트용)
+  api-key: ${TESTPAY_API_KEY:11111111-1111-4111-8111-111111111111}
+  base-url: ${TESTPAY_BASE_URL:https://api-test-pg.bigs.im}
 
