@@ -3,6 +3,7 @@ package im.bigs.pg.application.payment.service
 import im.bigs.pg.application.payment.port.`in`.*
 import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.payment.port.out.PaymentQuery
+import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
@@ -59,20 +60,29 @@ class QueryPaymentsService(
         // 3. 페이지 조회
         val page = paymentOutPort.findBy(query)
 
-        // 4. 다음 커서 인코딩
+        // 4. 통계 조회 (동일한 필터 적용, 커서는 무시)
+        val summaryFilter = PaymentSummaryFilter(
+            partnerId = filter.partnerId,
+            status = filter.status?.let { PaymentStatus.valueOf(it) },
+            from = filter.from,
+            to = filter.to
+        )
+        val summaryProjection = paymentOutPort.summary(summaryFilter)
+
+        // 5. 다음 커서 인코딩
         val nextCursor = if (page.hasNext) {
             encodeCursor(page.nextCursorCreatedAt, page.nextCursorId)
         } else {
             null
         }
 
-        // 5. 결과 반환 (summary는 다음 단계에서 구현)
+        // 6. 결과 반환
         return QueryResult(
             items = page.items,
             summary = PaymentSummary(
-                count = 0,
-                totalAmount = java.math.BigDecimal.ZERO,
-                totalNetAmount = java.math.BigDecimal.ZERO
+                count = summaryProjection.count,
+                totalAmount = summaryProjection.totalAmount,
+                totalNetAmount = summaryProjection.totalNetAmount
             ),
             nextCursor = nextCursor,
             hasNext = page.hasNext
