@@ -32,21 +32,23 @@ class QueryPaymentsService : QueryPaymentsUseCase {
     }
 
     /** 다음 페이지 이동을 위한 커서 인코딩. */
-    private fun encodeCursor(createdAt: Instant?, id: Long?): String? {
+    private fun encodeCursor(createdAt: java.time.LocalDateTime?, id: Long?): String? {
         if (createdAt == null || id == null) return null
-        val raw = "${createdAt.toEpochMilli()}:$id"
+        val instant = createdAt.toInstant(java.time.ZoneOffset.UTC)
+        val raw = "${instant.toEpochMilli()}:$id"
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray())
     }
 
     /** 요청으로 전달된 커서 복원. 유효하지 않으면 null 커서로 간주합니다. */
-    private fun decodeCursor(cursor: String?): Pair<Instant?, Long?> {
+    private fun decodeCursor(cursor: String?): Pair<java.time.LocalDateTime?, Long?> {
         if (cursor.isNullOrBlank()) return null to null
         return try {
             val raw = String(Base64.getUrlDecoder().decode(cursor))
             val parts = raw.split(":")
             val ts = parts[0].toLong()
             val id = parts[1].toLong()
-            Instant.ofEpochMilli(ts) to id
+            val instant = Instant.ofEpochMilli(ts)
+            java.time.LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC) to id
         } catch (e: Exception) {
             null to null
         }
