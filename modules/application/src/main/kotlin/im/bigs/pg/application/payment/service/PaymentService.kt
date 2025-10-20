@@ -46,13 +46,24 @@ class PaymentService(
                 productName = command.productName,
             ),
         )
-        val hardcodedRate = java.math.BigDecimal("0.0300")
-        val hardcodedFixed = java.math.BigDecimal("100")
-        val (fee, net) = FeeCalculator.calculateFee(command.amount, hardcodedRate, hardcodedFixed)
+
+        // 수수료 정책 조회 (승인 시각 기준)
+        val feePolicy = feePolicyRepository.findEffectivePolicy(
+            partnerId = partner.id,
+            at = approve.approvedAt
+        )?: throw IllegalStateException("No fee policy found for partner ${partner.id} at ${approve.approvedAt}")
+
+        // 수수료 계산
+        val (fee, net) = FeeCalculator.calculateFee(
+            amount = command.amount,
+            rate = feePolicy.percentage,
+            fixed = feePolicy.fixedFee
+        )
+
         val payment = Payment(
             partnerId = partner.id,
             amount = command.amount,
-            appliedFeeRate = hardcodedRate,
+            appliedFeeRate = feePolicy.percentage,
             feeAmount = fee,
             netAmount = net,
             cardBin = command.cardBin,
