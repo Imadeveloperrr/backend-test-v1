@@ -27,6 +27,7 @@ class DataInitializer {
         if (partnerRepo.count() == 0L) {
             val p1 = partnerRepo.save(PartnerEntity(code = "MOCK1", name = "Mock Partner 1", active = true))
             val p2 = partnerRepo.save(PartnerEntity(code = "TESTPAY1", name = "TestPay Partner 1", active = true))
+            val p3 = partnerRepo.save(PartnerEntity(code = "MOCK2", name = "Mock Partner 2", active = true))
             feeRepo.save(
                 FeePolicyEntity(
                     partnerId = p1.id!!,
@@ -43,7 +44,15 @@ class DataInitializer {
                     fixedFee = BigDecimal("100"),
                 ),
             )
-            log.info("Seeded partners: {} and {}", p1.id, p2.id)
+            feeRepo.save(
+                FeePolicyEntity(
+                    partnerId = p3.id!!,
+                    effectiveFrom = Instant.parse("2020-01-01T00:00:00Z"),
+                    percentage = BigDecimal("0.0350"),
+                    fixedFee = BigDecimal("50"),
+                ),
+            )
+            log.info("Seeded partners: {}, {}, and {}", p1.id, p2.id, p3.id)
         }
     }
 }
