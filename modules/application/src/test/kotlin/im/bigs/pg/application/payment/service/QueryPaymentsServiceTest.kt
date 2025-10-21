@@ -4,6 +4,7 @@ import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.payment.port.out.PaymentPage
 import im.bigs.pg.application.payment.port.out.PaymentQuery
+import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
 import im.bigs.pg.application.payment.port.out.PaymentSummaryProjection
 import im.bigs.pg.domain.payment.Payment
 import im.bigs.pg.domain.payment.PaymentStatus
@@ -86,7 +87,7 @@ class 결제조회서비스Test {
     @Test
     @DisplayName("summary는 items와 동일한 필터 적용 (커서 제외)")
     fun `summary 정합성 검증`() {
-        val summarySlot = slot<PaymentQuery>()
+        val summarySlot = slot<PaymentSummaryFilter>()
         every { paymentOutPort.findBy(any()) } returns PaymentPage(
             items = emptyList(), hasNext = false, nextCursorCreatedAt = null, nextCursorId = null
         )
@@ -103,11 +104,11 @@ class 결제조회서비스Test {
         assertEquals(BigDecimal("1000000"), result.summary.totalAmount)
         assertEquals(BigDecimal("970000"), result.summary.totalNetAmount)
 
-        // summary 필터에는 커서가 포함되지 않아야 함
-        assertNull(summarySlot.captured.cursorCreatedAt)
-        assertNull(summarySlot.captured.cursorId)
-        // status는 정상적으로 변환되어야 함
+        // summary 필터는 커서가 없는 별도 타입이며, 필터 조건만 포함
+        assertEquals(1L, summarySlot.captured.partnerId)
         assertEquals(PaymentStatus.APPROVED, summarySlot.captured.status)
+        assertNull(summarySlot.captured.from)
+        assertNull(summarySlot.captured.to)
     }
 
     @Test
@@ -169,5 +170,4 @@ class 결제조회서비스Test {
         assertEquals(testCreatedAt, querySlot2.captured.cursorCreatedAt)
         assertEquals(testId, querySlot2.captured.cursorId)
     }
-}
 }
