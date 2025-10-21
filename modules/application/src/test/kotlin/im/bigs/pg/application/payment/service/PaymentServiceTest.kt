@@ -121,4 +121,81 @@ class 결제서비스Test {
             service.pay(cmd)
         }
     }
+
+    @Test
+    @DisplayName("수수료 정책 - 비율만 적용 (고정 수수료 0원)")
+    fun `수수료 정책 - 비율만 적용`() {
+        val service = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient))
+        every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
+        every { feeRepo.findEffectivePolicy(1L, any()) } returns FeePolicy(
+            id = 10L, partnerId = 1L, effectiveFrom = LocalDateTime.of(2020,1,1,0,0),
+            percentage = BigDecimal("0.0250"), fixedFee = BigDecimal.ZERO
+        )
+        val savedSlot = slot<Payment>()
+        every { paymentRepo.save(capture(savedSlot)) } answers { savedSlot.captured.copy(id = 99L) }
+
+        val cmd = PaymentCommand(partnerId = 1L, amount = BigDecimal("10000"), cardBin = "123456", cardLast4 = "4242", productName = "Test")
+        val res = service.pay(cmd)
+
+        assertEquals(BigDecimal("250"), res.feeAmount)  // 10000 * 0.025 = 250
+        assertEquals(BigDecimal("9750"), res.netAmount)
+    }
+
+    @Test
+    @DisplayName("수수료 정책 - 고정 수수료만 적용 (비율 0%)")
+    fun `수수료 정책 - 고정 수수료만 적용`() {
+        val service = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient))
+        every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
+        every { feeRepo.findEffectivePolicy(1L, any()) } returns FeePolicy(
+            id = 10L, partnerId = 1L, effectiveFrom = LocalDateTime.of(2020,1,1,0,0),
+            percentage = BigDecimal.ZERO, fixedFee = BigDecimal("500")
+        )
+        val savedSlot = slot<Payment>()
+        every { paymentRepo.save(capture(savedSlot)) } answers { savedSlot.captured.copy(id = 99L) }
+
+        val cmd = PaymentCommand(partnerId = 1L, amount = BigDecimal("10000"), cardBin = "123456", cardLast4 = "4242", productName = "Test")
+        val res = service.pay(cmd)
+
+        assertEquals(BigDecimal("500"), res.feeAmount)
+        assertEquals(BigDecimal("9500"), res.netAmount)
+    }
+
+    @Test
+    @DisplayName("수수료 정책 - 비율 + 고정 수수료 혼합")
+    fun `수수료 정책 - 비율과 고정 수수료 혼합`() {
+        val service = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient))
+        every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
+        every { feeRepo.findEffectivePolicy(1L, any()) } returns FeePolicy(
+            id = 10L, partnerId = 1L, effectiveFrom = LocalDateTime.of(2020,1,1,0,0),
+            percentage = BigDecimal("0.0300"), fixedFee = BigDecimal("100")
+        )
+        val savedSlot = slot<Payment>()
+        every { paymentRepo.save(capture(savedSlot)) } answers { savedSlot.captured.copy(id = 99L) }
+
+        val cmd = PaymentCommand(partnerId = 1L, amount = BigDecimal("10000"), cardBin = "123456", cardLast4 = "4242", productName = "Test")
+        val res = service.pay(cmd)
+
+        assertEquals(BigDecimal("400"), res.feeAmount)  // (10000 * 0.03) + 100 = 400
+        assertEquals(BigDecimal("9600"), res.netAmount)
+    }
+
+    @Test
+    @DisplayName("수수료 반올림 검증 - HALF_UP 방식")
+    fun `수수료 반올림 검증`() {
+        val service = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient))
+        every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
+        every { feeRepo.findEffectivePolicy(1L, any()) } returns FeePolicy(
+            id = 10L, partnerId = 1L, effectiveFrom = LocalDateTime.of(2020,1,1,0,0),
+            percentage = BigDecimal("0.0333"), fixedFee = BigDecimal.ZERO
+        )
+        val savedSlot = slot<Payment>()
+        every { paymentRepo.save(capture(savedSlot)) } answers { savedSlot.captured.copy(id = 99L) }
+
+        val cmd = PaymentCommand(partnerId = 1L, amount = BigDecimal("10000"), cardBin = "123456", cardLast4 = "4242", productName = "Test")
+        val res = service.pay(cmd)
+
+        // 10000 * 0.0333 = 333.0 → HALF_UP = 333
+        assertEquals(BigDecimal("333"), res.feeAmount)
+        assertEquals(BigDecimal("9667"), res.netAmount)
+    }
 }
