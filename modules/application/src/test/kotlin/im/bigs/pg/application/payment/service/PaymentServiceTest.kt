@@ -11,9 +11,11 @@ import im.bigs.pg.domain.partner.FeePolicy
 import im.bigs.pg.domain.partner.Partner
 import im.bigs.pg.domain.payment.Payment
 import im.bigs.pg.domain.payment.PaymentStatus
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import java.math.BigDecimal
 import java.time.Instant
@@ -27,6 +29,12 @@ class 결제서비스Test {
     private val partnerRepo = mockk<PartnerOutPort>()
     private val feeRepo = mockk<FeePolicyOutPort>()
     private val paymentRepo = mockk<PaymentOutPort>()
+
+    @BeforeEach
+    fun setUp() {
+        clearMocks(partnerRepo, feeRepo, paymentRepo)
+    }
+
     private val pgClient = object : PgClientOutPort {
         override fun supports(partnerId: Long) = true
         override fun approve(request: PgApproveRequest) =
