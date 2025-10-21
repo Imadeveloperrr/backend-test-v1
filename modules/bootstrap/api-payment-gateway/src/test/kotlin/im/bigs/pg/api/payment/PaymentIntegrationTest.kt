@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -104,5 +105,87 @@ class PaymentIntegrationTest {
         val feeAmount = response["feeAmount"].asLong()
         val netAmount = response["netAmount"].asLong()
         assertEquals(amount - feeAmount, netAmount)
+    }
+
+    @Test
+    @DisplayName("커서 페이징이 정렬 키 기준으로 올바르게 동작해야 한다")
+    fun `커서 페이징 동작 검증`() {
+        // Given: 결제 5건 생성
+        repeat(5) {
+            val request = """
+                {
+                    "partnerId": 1,
+                    "amount": 10000,
+                    "cardBin": "123456",
+                    "cardLast4": "4242",
+                    "productName": "Test"
+                }
+            """.trimIndent()
+            mockMvc.perform(
+                post("/api/v1/payments")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(request)
+            ).andExpect(status().isOk)
+        }
+
+        // When: 첫 페이지 조회 (limit=2)
+        val firstPage = mockMvc.perform(get("/api/v1/payments?partnerId=1&limit=2"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.hasNext").value(true))
+            .andExpect(jsonPath("$.nextCursor").exists())
+            .andReturn()
+
+        val firstResponse = objectMapper.readTree(firstPage.response.contentAsString)
+        val nextCursor = firstResponse["nextCursor"].asText()
+
+        // Then: nextCursor로 두 번째 페이지 조회
+        mockMvc.perform(get("/api/v1/payments?partnerId=1&cursor=$nextCursor&limit=2"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.hasNext").value(true))
+
+        // 첫 페이지와 두 번째 페이지의 항목이 중복되지 않음
+        val firstItems = firstResponse["items"]
+        val secondPage = mockMvc.perform(get("/api/v1/payments?partnerId=1&cursor=$nextCursor&limit=2"))
+            .andReturn()
+        val secondResponse = objectMapper.readTree(secondPage.response.contentAsString)
+        val secondItems = secondResponse["items"]
+
+        val firstIds = firstItems.map { it["id"].asLong() }.toSet()
+        val secondIds = secondItems.map { it["id"].asLong() }.toSet()
+        assertTrue(firstIds.intersect(secondIds).isEmpty())  // 중복 없음
+    }
+
+    @Test
+    @DisplayName("필터 조합이 올바르게 동작해야 한다")
+    fun `복합 필터 조합 검증`() {
+        // Given: partnerId=1, APPROVED 상태 결제 생성
+        val request = """
+            {
+                "partnerId": 1,
+                "amount": 10000,
+                "cardBin": "123456",
+                "cardLast4": "4242",
+                "productName": "Test"
+            }
+        """.trimIndent()
+        mockMvc.perform(
+            post("/api/v1/payments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request)
+        ).andExpect(status().isOk)
+
+        // When: partnerId=1, status=APPROVED 필터로 조회
+        mockMvc.perform(get("/api/v1/payments?partnerId=1&status=APPROVED&limit=10"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items").isArray)
+            .andExpect(jsonPath("$.summary.count").isNumber)
+
+        // When: partnerId=1, status=CANCELED 필터로 조회 (결과 없음 - APPROVED만 생성했으므로)
+        mockMvc.perform(get("/api/v1/payments?partnerId=1&status=CANCELED&limit=10"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(0))
+            .andExpect(jsonPath("$.summary.count").value(0))
     }
 }
