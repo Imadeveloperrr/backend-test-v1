@@ -55,7 +55,10 @@ class TestPayClientTest {
                 "status": "APPROVED"
             }
         """.trimIndent()
-        mockServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
+        mockServer.enqueue(MockResponse()
+            .setBody(mockResponse)
+            .setResponseCode(200)
+            .setHeader("Content-Type", "application/json"))
 
         // When: 결제 승인 요청
         val request = PgApproveRequest(
@@ -86,7 +89,10 @@ class TestPayClientTest {
                 "status": "APPROVED"
             }
         """.trimIndent()
-        mockServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
+        mockServer.enqueue(MockResponse()
+            .setBody(mockResponse)
+            .setResponseCode(200)
+            .setHeader("Content-Type", "application/json"))
 
         // When: 결제 승인 요청
         val request = PgApproveRequest(
@@ -124,7 +130,10 @@ class TestPayClientTest {
                 "status": "APPROVED"
             }
         """.trimIndent()
-        mockServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
+        mockServer.enqueue(MockResponse()
+            .setBody(mockResponse)
+            .setResponseCode(200)
+            .setHeader("Content-Type", "application/json"))
 
         // When: 결제 승인 요청
         val request = PgApproveRequest(
